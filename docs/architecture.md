@@ -14,3 +14,7 @@ The completed application will follow this flow:
 ## Step 2 interface
 
 The Streamlit interface now provides separate upload, question, and workflow tabs. It validates that documents and a meaningful question are present before allowing the request to continue. File summaries display document names, formats, sizes, and total upload size without processing document contents yet.
+
+## Step 3 ingestion
+
+The ingestion layer accepts PDF, TXT, CSV, and XLSX files up to 20 MB each. It extracts selectable PDF text by page, decodes text files, converts CSV rows into normalized text, and converts every Excel worksheet into labeled text. Each successful result includes source and format metadata. Errors are isolated per file so one invalid upload does not stop the remaining batch.

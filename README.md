@@ -52,8 +52,9 @@ streamlit run app.py
 
 - Step 1 complete: repository structure, dependencies, and configuration template.
 - Step 2 complete: Streamlit interaction layer with multi-file upload, file summaries, question input, validation, and workflow guidance.
+- Step 3 complete: document ingestion for PDF, TXT, CSV, and Excel, including normalized text, metadata, per-file error isolation, size limits, and interface previews.
 
-The ingestion and RAG controls displayed by the interface will be connected in later steps.
+Text chunking, embeddings, retrieval, and grounded generation will be connected in later steps.
 
 ## Security
 

@@ -10,3 +10,7 @@ The completed application will follow this flow:
 6. A retrieval agent finds relevant chunks for the user's question.
 7. A reasoning agent creates a grounded response.
 8. A validation agent checks relevance, citations, and safety before display.
+
+## Step 2 interface
+
+The Streamlit interface now provides separate upload, question, and workflow tabs. It validates that documents and a meaningful question are present before allowing the request to continue. File summaries display document names, formats, sizes, and total upload size without processing document contents yet.

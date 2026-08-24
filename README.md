@@ -50,7 +50,10 @@ streamlit run app.py
 
 ## Current status
 
-Step 1 is complete: repository structure, dependency list, configuration template, and starter interface are included.
+- Step 1 complete: repository structure, dependencies, and configuration template.
+- Step 2 complete: Streamlit interaction layer with multi-file upload, file summaries, question input, validation, and workflow guidance.
+
+The ingestion and RAG controls displayed by the interface will be connected in later steps.
 
 ## Security
 

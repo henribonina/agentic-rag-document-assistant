@@ -4,6 +4,7 @@ from io import BytesIO
 
 from src.config import APP_NAME, SUPPORTED_EXTENSIONS
 from src.document_loader import load_document, load_documents
+from src.text_splitter import split_document, split_documents
 from src.ui_helpers import build_file_records, format_bytes, total_upload_size
 
 
@@ -60,3 +61,22 @@ def test_batch_isolates_errors() -> None:
     assert len(result.documents) == 1
     assert len(result.errors) == 1
     assert result.errors[0].source == "unsupported.docx"
+
+
+def test_document_chunking_preserves_metadata() -> None:
+    document = load_document(
+        Upload("long.txt", ("First sentence. " * 100).encode("utf-8"))
+    )
+    chunks = split_document(document, chunk_size=300, chunk_overlap=50)
+    assert len(chunks) > 1
+    assert chunks[0].chunk_id == "long-txt-0000"
+    assert chunks[0].metadata["source"] == "long.txt"
+    assert chunks[1].metadata["chunk_index"] == 1
+    assert all(chunk.character_count <= 300 for chunk in chunks)
+
+
+def test_multiple_document_chunk_order() -> None:
+    first = load_document(Upload("first.txt", b"First document content."))
+    second = load_document(Upload("second.txt", b"Second document content."))
+    chunks = split_documents([first, second], chunk_size=200, chunk_overlap=20)
+    assert [chunk.source for chunk in chunks] == ["first.txt", "second.txt"]

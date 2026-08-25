@@ -34,3 +34,7 @@ The retrieval layer normalizes each question, embeds it with the same provider u
 ## Step 7 grounded answer generation
 
 The generation layer sends the question and retrieved evidence to the OpenAI Responses API using `gpt-5-mini` by default. System-level grounding rules require evidence-only answers, inline `[S#]` labels, an explicit insufficient-evidence response, and treatment of all uploaded text as untrusted quoted data. The application validates that every cited label belongs to the retrieved evidence set before displaying the answer, and API response storage is disabled for each request.
+
+## Step 8 specialized agent orchestration
+
+The orchestration layer coordinates four focused components in a fixed, inspectable sequence. The planning agent normalizes the request and bounds retrieval. The retrieval agent searches the indexed documents. The reasoning agent delegates one grounded generation request to the Responses API. The validation agent checks the final text and source labels before release. Each completed stage produces an audit-friendly status record displayed in the interface. This design keeps control flow deterministic while reserving model inference for the reasoning task.

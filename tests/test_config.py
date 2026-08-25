@@ -2,6 +2,7 @@
 
 from io import BytesIO
 
+from src.agents import AgentOrchestrator, PlanningAgent
 from src.config import APP_NAME, OPENAI_MODEL, SUPPORTED_EXTENSIONS
 from src.document_loader import load_document, load_documents
 from src.rag_pipeline import (
@@ -196,3 +197,49 @@ def test_openai_generator_uses_responses_api_without_storage() -> None:
     assert answer.citation_ids == ("S1",)
     assert client.responses.request["store"] is False
     assert client.responses.request["model"] == "gpt-5-mini"
+
+
+def test_planning_agent_builds_bounded_plan() -> None:
+    plan = PlanningAgent().plan("  What is the approval deadline?  ", top_k=3)
+    assert plan.original_question == "What is the approval deadline?"
+    assert plan.search_query == plan.original_question
+    assert plan.top_k == 3
+
+
+def test_agent_orchestrator_runs_all_specialized_roles() -> None:
+    class FakeVectorStore:
+        def search(self, query: str, top_k: int = 4):
+            assert query == "When is approval due?"
+            assert top_k == 1
+            return (
+                SearchResult(
+                    chunk_id="report-pdf-0002",
+                    text="## Page 3\nThe project approval deadline is June 30.",
+                    metadata={"source": "report.pdf", "chunk_index": 2},
+                    distance=0.09,
+                ),
+            )
+
+    class FakeGenerator:
+        def generate(self, question, passages):
+            assert question == "When is approval due?"
+            assert len(passages) == 1
+            from src.rag_pipeline import GroundedAnswer
+
+            return GroundedAnswer(
+                text="Approval is due June 30 [S1].",
+                model="fake-model",
+                citation_ids=("S1",),
+            )
+
+    result = AgentOrchestrator(FakeGenerator()).run(
+        "When is approval due?", FakeVectorStore(), top_k=1
+    )
+    assert result.answer.citation_ids == ("S1",)
+    assert [step.agent for step in result.steps] == [
+        "Planning agent",
+        "Retrieval agent",
+        "Reasoning agent",
+        "Validation agent",
+    ]
+    assert all(step.status == "complete" for step in result.steps)

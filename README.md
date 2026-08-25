@@ -57,8 +57,9 @@ streamlit run app.py
 - Step 5 complete: embedding generation and Chroma vector indexing with production OpenAI embeddings or deterministic offline development embeddings.
 - Step 6 complete: semantic question retrieval with configurable result counts, ranked relevance scores, source filenames, locations, and expandable evidence passages.
 - Step 7 complete: grounded answer generation through the OpenAI Responses API with evidence-only instructions, inline source labels, citation validation, prompt-injection resistance, and an explicit insufficient-evidence response.
+- Step 8 complete: coordinated planning, retrieval, reasoning, and validation agents with a visible execution trace and a single model call per question.
 
-Specialized planning, reasoning, and validation agents will be connected in later steps.
+The next step will add expanded reliability, safety, and evaluation controls.
 
 ### Embedding modes
 
@@ -68,6 +69,10 @@ Specialized planning, reasoning, and validation agents will be connected in late
 ### Grounded answers
 
 The answer generator uses `gpt-5-mini` by default. It receives only the user question and retrieved passages, treats document text as untrusted data, and requires inline citations such as `[S1]`. Set `OPENAI_MODEL` in the local `.env` file to use another compatible model.
+
+### Specialized agents
+
+Each question moves through four bounded roles: the planning agent defines the search objective, the retrieval agent gathers ranked evidence, the reasoning agent creates the grounded response, and the validation agent checks the final output before display. The roles are coordinated locally and use one OpenAI model request, limiting unnecessary cost and latency.
 
 ## Security
 

@@ -2,9 +2,9 @@
 
 import streamlit as st
 
+from src.agents import run_agent_workflow
 from src.config import OPENAI_API_KEY, OPENAI_MODEL
 from src.document_loader import IngestionResult, load_documents
-from src.rag_pipeline import generate_grounded_answer
 from src.retriever import retrieve_passages
 from src.text_splitter import split_documents
 from src.ui_helpers import build_file_records, total_upload_size
@@ -34,7 +34,7 @@ st.markdown(
 
 with st.sidebar:
     st.header("Project status")
-    st.success("Step 7: Grounded answer generation")
+    st.success("Step 8: Specialized agent orchestration")
     st.write("Supported formats")
     st.code("PDF  TXT  CSV  XLSX", language=None)
     st.divider()
@@ -81,7 +81,8 @@ st.write(
     "Upload enterprise documents and ask questions in natural language. "
     "The application now extracts, chunks, embeds, and indexes supported files "
     "in Chroma, retrieves relevant passages, and generates answers grounded in "
-    "those sources. Later steps will add specialized agent collaboration."
+    "those sources through coordinated planning, retrieval, reasoning, and "
+    "validation agents."
 )
 
 ingestion = IngestionResult()
@@ -206,12 +207,23 @@ with question_tab:
             st.error("Please enter a more specific question.")
         else:
             try:
-                with st.spinner("Searching for relevant passages..."):
-                    passages = retrieve_passages(
-                        vector_store,
-                        question,
-                        top_k=top_k,
-                    )
+                if OPENAI_API_KEY:
+                    with st.spinner("Agents are analyzing your documents..."):
+                        agentic_result = run_agent_workflow(
+                            question=question,
+                            vector_store=vector_store,
+                            api_key=OPENAI_API_KEY,
+                            model=OPENAI_MODEL,
+                            top_k=top_k,
+                        )
+                    passages = agentic_result.passages
+                else:
+                    with st.spinner("Searching for relevant passages..."):
+                        passages = retrieve_passages(
+                            vector_store,
+                            question,
+                            top_k=top_k,
+                        )
                 if not passages:
                     st.warning("No relevant passages were found in the index.")
                 else:
@@ -220,13 +232,7 @@ with question_tab:
                         f"{len(ingestion.documents)} document(s)."
                     )
                     if OPENAI_API_KEY:
-                        with st.spinner("Generating a grounded answer..."):
-                            grounded_answer = generate_grounded_answer(
-                                question=question,
-                                passages=passages,
-                                api_key=OPENAI_API_KEY,
-                                model=OPENAI_MODEL,
-                            )
+                        grounded_answer = agentic_result.answer
                         st.subheader("Grounded answer")
                         st.markdown(grounded_answer.text)
                         if grounded_answer.citation_ids:
@@ -239,6 +245,14 @@ with question_tab:
                                 )
                             st.caption("Cited evidence: " + " | ".join(cited_sources))
                         st.caption(f"Generated with {grounded_answer.model}")
+                        with st.expander("Agent workflow", expanded=False):
+                            st.caption(
+                                f"Objective: {agentic_result.plan.objective}"
+                            )
+                            for step in agentic_result.steps:
+                                st.markdown(
+                                    f"✅ **{step.agent}** — {step.detail}"
+                                )
                     else:
                         st.warning(
                             "Add OPENAI_API_KEY to your local .env file to "

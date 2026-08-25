@@ -160,10 +160,13 @@ class ChromaVectorStore:
         """Return the nearest chunks for a natural-language query."""
         if not query.strip():
             raise ValueError("A non-empty search query is required.")
+        collection_size = self._collection.count()
+        if collection_size == 0:
+            return ()
         query_embedding = self.embedding_provider.embed_query(query)
         result = self._collection.query(
             query_embeddings=[query_embedding],
-            n_results=max(1, top_k),
+            n_results=min(max(1, top_k), collection_size),
             include=["documents", "metadatas", "distances"],
         )
         ids = result.get("ids", [[]])[0]

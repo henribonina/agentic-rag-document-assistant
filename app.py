@@ -4,6 +4,7 @@ import streamlit as st
 
 from src.config import OPENAI_API_KEY
 from src.document_loader import IngestionResult, load_documents
+from src.retriever import retrieve_passages
 from src.text_splitter import split_documents
 from src.ui_helpers import build_file_records, total_upload_size
 from src.vector_store import ChromaVectorStore, create_embedding_provider
@@ -32,7 +33,7 @@ st.markdown(
 
 with st.sidebar:
     st.header("Project status")
-    st.success("Step 5: Vector knowledge store")
+    st.success("Step 6: Semantic retrieval")
     st.write("Supported formats")
     st.code("PDF  TXT  CSV  XLSX", language=None)
     st.divider()
@@ -60,6 +61,13 @@ with st.sidebar:
         help="OpenAI provides production-quality semantic embeddings. Local mode "
         "is deterministic and intended for offline development.",
     )
+    top_k = st.slider(
+        "Passages to retrieve",
+        min_value=1,
+        max_value=8,
+        value=4,
+        help="The number of relevant document passages shown for each question.",
+    )
     st.divider()
     st.caption(
         "Files are used only for the current session. Do not upload confidential "
@@ -70,13 +78,14 @@ st.title("Agentic RAG Document Assistant")
 st.write(
     "Upload enterprise documents and ask questions in natural language. "
     "The application now extracts, chunks, embeds, and indexes supported files "
-    "in Chroma; later steps will add retrieval, agent reasoning, and grounded "
-    "answer generation."
+    "in Chroma, then retrieves the passages most relevant to each question. "
+    "Later steps will add agent reasoning and grounded answer generation."
 )
 
 ingestion = IngestionResult()
 chunks = ()
 vector_index = None
+vector_store = None
 
 upload_tab, question_tab, about_tab = st.tabs(
     ["1. Upload documents", "2. Ask a question", "How it works"]
@@ -194,13 +203,37 @@ with question_tab:
         elif len(question.strip()) < 5:
             st.error("Please enter a more specific question.")
         else:
-            st.success("Question accepted.")
-            st.info(
-                f"Your question is ready for semantic search across "
-                f"{vector_index.chunk_count} indexed vectors from "
-                f"{len(ingestion.documents)} document(s). Retrieval and answer "
-                "generation will be connected in upcoming steps."
-            )
+            try:
+                with st.spinner("Searching for relevant passages..."):
+                    passages = retrieve_passages(
+                        vector_store,
+                        question,
+                        top_k=top_k,
+                    )
+                if not passages:
+                    st.warning("No relevant passages were found in the index.")
+                else:
+                    st.success(
+                        f"Retrieved {len(passages)} passage(s) from "
+                        f"{len(ingestion.documents)} document(s)."
+                    )
+                    st.subheader("Most relevant passages")
+                    for passage in passages:
+                        score = round(passage.relevance * 100)
+                        label = (
+                            f"{passage.rank}. {passage.source} · "
+                            f"{passage.location} · {score}% relevance"
+                        )
+                        with st.expander(label, expanded=passage.rank == 1):
+                            st.write(passage.text)
+                            st.caption(f"Reference: {passage.chunk_id}")
+                    st.info(
+                        "Step 6 returns supporting evidence only. A later step "
+                        "will use these passages to generate and validate a "
+                        "grounded answer."
+                    )
+            except Exception as exc:
+                st.error(f"Semantic retrieval failed: {exc}")
 
 with about_tab:
     st.subheader("Planned processing workflow")

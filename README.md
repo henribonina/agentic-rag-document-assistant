@@ -55,8 +55,9 @@ streamlit run app.py
 - Step 3 complete: document ingestion for PDF, TXT, CSV, and Excel, including normalized text, metadata, per-file error isolation, size limits, and interface previews.
 - Step 4 complete: configurable, overlapping text chunks with natural boundary detection, stable chunk IDs, source metadata, and interface previews.
 - Step 5 complete: embedding generation and Chroma vector indexing with production OpenAI embeddings or deterministic offline development embeddings.
+- Step 6 complete: semantic question retrieval with configurable result counts, ranked relevance scores, source filenames, locations, and expandable evidence passages.
 
-Semantic retrieval and grounded generation will be connected in later steps.
+Grounded answer generation will be connected in later steps.
 
 ### Embedding modes
 

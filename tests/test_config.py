@@ -4,9 +4,10 @@ from io import BytesIO
 
 from src.config import APP_NAME, SUPPORTED_EXTENSIONS
 from src.document_loader import load_document, load_documents
+from src.retriever import retrieve_passages
 from src.text_splitter import split_document, split_documents
 from src.ui_helpers import build_file_records, format_bytes, total_upload_size
-from src.vector_store import LocalHashEmbeddings, _safe_metadata
+from src.vector_store import LocalHashEmbeddings, SearchResult, _safe_metadata
 
 
 def test_app_name_is_defined() -> None:
@@ -99,3 +100,33 @@ def test_chroma_metadata_is_scalar() -> None:
     assert metadata["source"] == "report.pdf"
     assert metadata["pages"] == 3
     assert metadata["columns"] == '["a", "b"]'
+
+
+def test_semantic_retrieval_formats_ranked_sources() -> None:
+    class FakeVectorStore:
+        def search(self, query: str, top_k: int = 4):
+            assert query == "What are the main risks?"
+            assert top_k == 2
+            return (
+                SearchResult(
+                    chunk_id="report-pdf-0002",
+                    text="## Page 3\nThe principal risk is delayed approval.",
+                    metadata={"source": "report.pdf", "chunk_index": 2},
+                    distance=0.12,
+                ),
+                SearchResult(
+                    chunk_id="notes-txt-0000",
+                    text="A secondary operational risk is listed here.",
+                    metadata={"source": "notes.txt", "chunk_index": 0},
+                    distance=0.35,
+                ),
+            )
+
+    passages = retrieve_passages(
+        FakeVectorStore(), "  What are the main risks?  ", top_k=2
+    )
+    assert [passage.rank for passage in passages] == [1, 2]
+    assert passages[0].source == "report.pdf"
+    assert passages[0].location == "Page 3"
+    assert passages[0].relevance == 0.88
+    assert passages[1].location == "Chunk 1"

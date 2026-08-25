@@ -26,3 +26,7 @@ The chunking layer converts extracted text into overlapping retrieval units. It 
 ## Step 5 vector knowledge store
 
 The vector layer generates one embedding per text chunk and upserts the vectors, chunk text, and scalar metadata into an in-memory Chroma collection configured for cosine distance. OpenAI `text-embedding-3-small` is available for production-quality semantic vectors when a local API key is configured. A deterministic 384-dimensional local provider supports offline development and repeatable tests without external calls.
+
+## Step 6 semantic retrieval
+
+The retrieval layer normalizes each question, embeds it with the same provider used for document chunks, and queries Chroma for the nearest passages. The interface allows one to eight results and displays each match in ranked order with a bounded relevance score, source filename, page or sheet label when available, stable chunk reference, and expandable source text. The retrieved passages become the evidence set for grounded generation in the next stage.

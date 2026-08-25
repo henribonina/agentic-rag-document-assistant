@@ -6,7 +6,7 @@ A Generative AI document question-answering application using Retrieval-Augmente
 
 Users will be able to upload PDF, TXT, CSV, and Excel documents, ask natural-language questions, and receive answers grounded in retrieved document content.
 
-## Planned architecture
+## Architecture
 
 1. Streamlit user interface
 2. Multi-format document ingestion
@@ -17,6 +17,7 @@ Users will be able to upload PDF, TXT, CSV, and Excel documents, ask natural-lan
 7. LLM-based grounded generation
 8. Planning, retrieval, reasoning, and validation agents
 9. Reliability and safety controls
+10. Streamlit deployment with secrets managed outside the repository
 
 ## Local setup
 
@@ -48,6 +49,28 @@ Add your API key to `.env`, then run:
 streamlit run app.py
 ```
 
+Open `http://localhost:8501` in a browser. Upload a readable PDF, TXT, CSV, or
+XLSX file, wait for indexing, and ask a focused question about its contents.
+
+## Deployment
+
+The recommended deployment target is Streamlit Community Cloud:
+
+1. Push the complete project to a GitHub repository.
+2. Sign in to Streamlit Community Cloud with GitHub.
+3. Create an app using the repository, the `main` branch, and `app.py` as the
+   entry point.
+4. In the app's advanced settings, add this secret without committing it:
+
+   ```toml
+   OPENAI_API_KEY = "your_api_key_here"
+   ```
+
+5. Deploy the app and verify document upload, indexing, retrieval, grounded
+   answers, citations, and safety checks.
+
+See `docs/deployment.md` for deployment, verification, and troubleshooting.
+
 ## Current status
 
 - Step 1 complete: repository structure, dependencies, and configuration template.
@@ -59,8 +82,10 @@ streamlit run app.py
 - Step 7 complete: grounded answer generation through the OpenAI Responses API with evidence-only instructions, inline source labels, citation validation, prompt-injection resistance, and an explicit insufficient-evidence response.
 - Step 8 complete: coordinated planning, retrieval, reasoning, and validation agents with a visible execution trace and a single model call per question.
 - Step 9 complete: deterministic input and output guardrails, bounded retries for transient API errors, human-review guidance, visible safety checks, and offline regression evaluations.
+- Step 10 complete: local execution verified, deployment instructions documented, limitations recorded, and a submission-ready source package prepared.
 
-The capstone workflow is now complete from document upload through safe, evaluated answer delivery.
+The capstone workflow is complete from document upload through safe, evaluated
+answer delivery and deployment preparation.
 
 ### Embedding modes
 
@@ -82,6 +107,31 @@ The application rejects malformed or oversized questions, common instruction-byp
 ## Security
 
 Never commit `.env`, API keys, private documents, or generated vector databases.
+
+## Limitations
+
+- Image-only PDFs require OCR before upload.
+- The in-memory vector index is rebuilt when the application restarts.
+- Answer quality depends on document quality, chunk settings, retrieval results,
+  and the selected model.
+- Generated answers can still be incomplete or incorrect and must be checked
+  against the displayed evidence for important decisions.
+- OpenAI embedding and answer generation require API access and incur usage
+  charges.
+
+## Challenges addressed
+
+- Multi-format ingestion isolates unreadable files instead of failing the batch.
+- Natural-boundary chunking preserves useful context while controlling size.
+- Citation validation prevents references to evidence that was not retrieved.
+- Prompt-injection checks treat uploaded document instructions as untrusted data.
+- Local deterministic embeddings allow offline testing without API calls.
+
+## Final submission
+
+Submit the complete source ZIP, including this README and the `docs` directory.
+Do not include `.env`, `.venv`, API keys, uploaded private documents, caches, or
+generated vector databases.
 
 ## License
 

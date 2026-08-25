@@ -35,7 +35,7 @@ st.markdown(
 
 with st.sidebar:
     st.header("Project status")
-    st.success("Step 9: Reliability, safety, and evaluations")
+    st.success("Step 10: Deployment-ready solution")
     st.write("Supported formats")
     st.code("PDF  TXT  CSV  XLSX", language=None)
     st.divider()

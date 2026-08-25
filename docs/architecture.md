@@ -42,3 +42,13 @@ The orchestration layer coordinates four focused components in a fixed, inspecta
 ## Step 9 reliability, safety, and evaluation
 
 The guardrail layer validates question length, control characters, and common instruction-bypass patterns before retrieval. After generation it enforces answer size, evidence citations, and valid source labels. Transient service errors receive one bounded retry, while non-transient failures surface immediately. A deterministic offline regression suite checks representative normal, malformed, adversarial, and oversized inputs. Supporting passages remain visible so a person can verify important outputs before acting on them.
+
+## Step 10 deployment and documentation
+
+The application is packaged for deployment from GitHub to Streamlit Community
+Cloud with `app.py` as its entry point and `requirements.txt` as its dependency
+manifest. The OpenAI API key is supplied through the hosting platform's secrets
+manager and is never stored in the repository. Deployment verification covers
+document ingestion, chunking, vector indexing, retrieval, grounded generation,
+citations, agent workflow visibility, and safety checks. Operational limitations
+and troubleshooting guidance are documented in `docs/deployment.md`.

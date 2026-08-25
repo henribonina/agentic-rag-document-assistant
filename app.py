@@ -5,6 +5,7 @@ import streamlit as st
 from src.agents import run_agent_workflow
 from src.config import OPENAI_API_KEY, OPENAI_MODEL
 from src.document_loader import IngestionResult, load_documents
+from src.evaluation import run_regression_evaluations
 from src.retriever import retrieve_passages
 from src.text_splitter import split_documents
 from src.ui_helpers import build_file_records, total_upload_size
@@ -34,7 +35,7 @@ st.markdown(
 
 with st.sidebar:
     st.header("Project status")
-    st.success("Step 8: Specialized agent orchestration")
+    st.success("Step 9: Reliability, safety, and evaluations")
     st.write("Supported formats")
     st.code("PDF  TXT  CSV  XLSX", language=None)
     st.divider()
@@ -90,8 +91,8 @@ chunks = ()
 vector_index = None
 vector_store = None
 
-upload_tab, question_tab, about_tab = st.tabs(
-    ["1. Upload documents", "2. Ask a question", "How it works"]
+upload_tab, question_tab, safety_tab, about_tab = st.tabs(
+    ["1. Upload documents", "2. Ask a question", "Safety checks", "How it works"]
 )
 
 with upload_tab:
@@ -253,6 +254,12 @@ with question_tab:
                                 st.markdown(
                                     f"✅ **{step.agent}** — {step.detail}"
                                 )
+                        with st.expander("Safety validation", expanded=False):
+                            for check in agentic_result.safety_checks:
+                                icon = "✅" if check.passed else "❌"
+                                st.markdown(
+                                    f"{icon} **{check.name}** — {check.detail}"
+                                )
                     else:
                         st.warning(
                             "Add OPENAI_API_KEY to your local .env file to "
@@ -276,6 +283,27 @@ with question_tab:
                     )
             except Exception as exc:
                 st.error(f"Question answering failed: {exc}")
+
+with safety_tab:
+    st.subheader("Reliability and safety status")
+    st.write(
+        "These offline regression checks verify normal questions, input limits, "
+        "and common prompt-injection behavior without making an API request."
+    )
+    evaluation_results = run_regression_evaluations()
+    passed_count = sum(result.passed for result in evaluation_results)
+    metric_col1, metric_col2 = st.columns(2)
+    metric_col1.metric("Checks passed", f"{passed_count}/{len(evaluation_results)}")
+    metric_col2.metric(
+        "Status", "Ready" if passed_count == len(evaluation_results) else "Review"
+    )
+    for result in evaluation_results:
+        icon = "✅" if result.passed else "❌"
+        st.markdown(f"{icon} **{result.name}** — {result.detail}")
+    st.info(
+        "Human review remains required for important decisions. Always compare "
+        "answers with the displayed supporting evidence."
+    )
 
 with about_tab:
     st.subheader("Planned processing workflow")

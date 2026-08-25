@@ -58,8 +58,9 @@ streamlit run app.py
 - Step 6 complete: semantic question retrieval with configurable result counts, ranked relevance scores, source filenames, locations, and expandable evidence passages.
 - Step 7 complete: grounded answer generation through the OpenAI Responses API with evidence-only instructions, inline source labels, citation validation, prompt-injection resistance, and an explicit insufficient-evidence response.
 - Step 8 complete: coordinated planning, retrieval, reasoning, and validation agents with a visible execution trace and a single model call per question.
+- Step 9 complete: deterministic input and output guardrails, bounded retries for transient API errors, human-review guidance, visible safety checks, and offline regression evaluations.
 
-The next step will add expanded reliability, safety, and evaluation controls.
+The capstone workflow is now complete from document upload through safe, evaluated answer delivery.
 
 ### Embedding modes
 
@@ -73,6 +74,10 @@ The answer generator uses `gpt-5-mini` by default. It receives only the user que
 ### Specialized agents
 
 Each question moves through four bounded roles: the planning agent defines the search objective, the retrieval agent gathers ranked evidence, the reasoning agent creates the grounded response, and the validation agent checks the final output before display. The roles are coordinated locally and use one OpenAI model request, limiting unnecessary cost and latency.
+
+### Safety and evaluation
+
+The application rejects malformed or oversized questions, common instruction-bypass attempts, empty or oversized answers, and invalid evidence labels. Transient API failures receive one bounded retry. An offline evaluation tab tests expected behavior without an API call, while the interface keeps retrieved passages visible for human review.
 
 ## Security
 

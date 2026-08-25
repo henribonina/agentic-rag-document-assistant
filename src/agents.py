@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Protocol, Sequence
 
+from src.guardrails import SafetyCheck, validate_final_answer, validate_question
 from src.rag_pipeline import GroundedAnswer, OpenAIAnswerGenerator
 from src.retriever import RetrievedPassage, SearchableVectorStore, retrieve_passages
 
@@ -34,6 +35,7 @@ class AgenticAnswer:
     passages: tuple[RetrievedPassage, ...]
     plan: QuestionPlan
     steps: tuple[AgentStep, ...]
+    safety_checks: tuple[SafetyCheck, ...]
 
 
 class AnswerGenerator(Protocol):
@@ -50,9 +52,7 @@ class PlanningAgent:
     name = "Planning agent"
 
     def plan(self, question: str, top_k: int) -> QuestionPlan:
-        normalized = " ".join(question.split())
-        if len(normalized) < 5:
-            raise ValueError("Enter a question containing at least 5 characters.")
+        normalized, _ = validate_question(question)
         if not 1 <= top_k <= 8:
             raise ValueError("top_k must be between 1 and 8.")
         return QuestionPlan(
@@ -100,16 +100,8 @@ class ValidationAgent:
 
     def validate(
         self, answer: GroundedAnswer, passages: Sequence[RetrievedPassage]
-    ) -> None:
-        if not answer.text.strip():
-            raise ValueError("The final answer is empty.")
-        allowed = {f"S{passage.rank}" for passage in passages}
-        invalid = set(answer.citation_ids) - allowed
-        if invalid:
-            raise ValueError(
-                "The final answer contains invalid citations: "
-                + ", ".join(sorted(invalid))
-            )
+    ) -> tuple[SafetyCheck, ...]:
+        return validate_final_answer(answer, passages)
 
 
 class AgentOrchestrator:
@@ -135,7 +127,8 @@ class AgentOrchestrator:
     ) -> AgenticAnswer:
         steps: list[AgentStep] = []
 
-        plan = self.planning_agent.plan(question, top_k)
+        normalized_question, input_checks = validate_question(question)
+        plan = self.planning_agent.plan(normalized_question, top_k)
         steps.append(
             AgentStep(
                 self.planning_agent.name,
@@ -162,7 +155,7 @@ class AgentOrchestrator:
             )
         )
 
-        self.validation_agent.validate(answer, passages)
+        output_checks = self.validation_agent.validate(answer, passages)
         steps.append(
             AgentStep(
                 self.validation_agent.name,
@@ -170,7 +163,13 @@ class AgentOrchestrator:
                 "Verified the final response and its source labels.",
             )
         )
-        return AgenticAnswer(answer, passages, plan, tuple(steps))
+        return AgenticAnswer(
+            answer,
+            passages,
+            plan,
+            tuple(steps),
+            input_checks + output_checks,
+        )
 
 
 def run_agent_workflow(

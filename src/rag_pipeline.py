@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import re
+import time
 from typing import Any, Sequence
 
 from src.retriever import RetrievedPassage
@@ -98,6 +99,7 @@ class OpenAIAnswerGenerator:
         api_key: str,
         model: str = "gpt-5-mini",
         client: Any | None = None,
+        max_attempts: int = 2,
     ) -> None:
         if client is None:
             if not api_key:
@@ -109,6 +111,7 @@ class OpenAIAnswerGenerator:
             client = OpenAI(api_key=api_key)
         self._client = client
         self.model = model
+        self.max_attempts = max(1, max_attempts)
 
     def generate(
         self,
@@ -116,13 +119,28 @@ class OpenAIAnswerGenerator:
         passages: Sequence[RetrievedPassage],
     ) -> GroundedAnswer:
         """Generate and validate one grounded answer."""
-        response = self._client.responses.create(
-            model=self.model,
-            instructions=GROUNDING_INSTRUCTIONS,
-            input=build_grounded_input(question, passages),
-            max_output_tokens=800,
-            store=False,
-        )
+        request = {
+            "model": self.model,
+            "instructions": GROUNDING_INSTRUCTIONS,
+            "input": build_grounded_input(question, passages),
+            "max_output_tokens": 800,
+            "store": False,
+        }
+        response = None
+        for attempt in range(self.max_attempts):
+            try:
+                response = self._client.responses.create(**request)
+                break
+            except Exception as exc:
+                status = getattr(exc, "status_code", None)
+                retryable = status in {408, 409, 429} or (
+                    isinstance(status, int) and status >= 500
+                )
+                if not retryable or attempt + 1 >= self.max_attempts:
+                    raise
+                time.sleep(0.25 * (attempt + 1))
+        if response is None:
+            raise RuntimeError("The answer service did not return a response.")
         answer = str(response.output_text).strip()
         citations = validate_grounded_output(answer, passages)
         return GroundedAnswer(

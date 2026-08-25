@@ -38,3 +38,7 @@ The generation layer sends the question and retrieved evidence to the OpenAI Res
 ## Step 8 specialized agent orchestration
 
 The orchestration layer coordinates four focused components in a fixed, inspectable sequence. The planning agent normalizes the request and bounds retrieval. The retrieval agent searches the indexed documents. The reasoning agent delegates one grounded generation request to the Responses API. The validation agent checks the final text and source labels before release. Each completed stage produces an audit-friendly status record displayed in the interface. This design keeps control flow deterministic while reserving model inference for the reasoning task.
+
+## Step 9 reliability, safety, and evaluation
+
+The guardrail layer validates question length, control characters, and common instruction-bypass patterns before retrieval. After generation it enforces answer size, evidence citations, and valid source labels. Transient service errors receive one bounded retry, while non-transient failures surface immediately. A deterministic offline regression suite checks representative normal, malformed, adversarial, and oversized inputs. Supporting passages remain visible so a person can verify important outputs before acting on them.

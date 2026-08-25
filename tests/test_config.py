@@ -6,6 +6,7 @@ from src.config import APP_NAME, SUPPORTED_EXTENSIONS
 from src.document_loader import load_document, load_documents
 from src.text_splitter import split_document, split_documents
 from src.ui_helpers import build_file_records, format_bytes, total_upload_size
+from src.vector_store import LocalHashEmbeddings, _safe_metadata
 
 
 def test_app_name_is_defined() -> None:
@@ -80,3 +81,21 @@ def test_multiple_document_chunk_order() -> None:
     second = load_document(Upload("second.txt", b"Second document content."))
     chunks = split_documents([first, second], chunk_size=200, chunk_overlap=20)
     assert [chunk.source for chunk in chunks] == ["first.txt", "second.txt"]
+
+
+def test_local_embeddings_are_deterministic_and_normalized() -> None:
+    provider = LocalHashEmbeddings(dimension=128)
+    first = provider.embed_query("semantic search document")
+    second = provider.embed_query("semantic search document")
+    assert first == second
+    assert len(first) == 128
+    assert abs(sum(value * value for value in first) - 1.0) < 1e-9
+
+
+def test_chroma_metadata_is_scalar() -> None:
+    metadata = _safe_metadata(
+        {"source": "report.pdf", "pages": 3, "columns": ["a", "b"]}
+    )
+    assert metadata["source"] == "report.pdf"
+    assert metadata["pages"] == 3
+    assert metadata["columns"] == '["a", "b"]'

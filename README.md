@@ -54,8 +54,14 @@ streamlit run app.py
 - Step 2 complete: Streamlit interaction layer with multi-file upload, file summaries, question input, validation, and workflow guidance.
 - Step 3 complete: document ingestion for PDF, TXT, CSV, and Excel, including normalized text, metadata, per-file error isolation, size limits, and interface previews.
 - Step 4 complete: configurable, overlapping text chunks with natural boundary detection, stable chunk IDs, source metadata, and interface previews.
+- Step 5 complete: embedding generation and Chroma vector indexing with production OpenAI embeddings or deterministic offline development embeddings.
 
-Embeddings, vector storage, retrieval, and grounded generation will be connected in later steps.
+Semantic retrieval and grounded generation will be connected in later steps.
+
+### Embedding modes
+
+- **OpenAI:** Uses `text-embedding-3-small` when `OPENAI_API_KEY` is configured in the local `.env` file.
+- **Local:** Uses deterministic 384-dimensional token-hash vectors for offline development and testing. Local mode is not a substitute for a production semantic embedding model.
 
 ## Security
 

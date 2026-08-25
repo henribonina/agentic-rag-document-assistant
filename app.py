@@ -2,9 +2,11 @@
 
 import streamlit as st
 
+from src.config import OPENAI_API_KEY
 from src.document_loader import IngestionResult, load_documents
 from src.text_splitter import split_documents
 from src.ui_helpers import build_file_records, total_upload_size
+from src.vector_store import ChromaVectorStore, create_embedding_provider
 
 
 st.set_page_config(
@@ -30,7 +32,7 @@ st.markdown(
 
 with st.sidebar:
     st.header("Project status")
-    st.success("Step 4: Text chunking")
+    st.success("Step 5: Vector knowledge store")
     st.write("Supported formats")
     st.code("PDF  TXT  CSV  XLSX", language=None)
     st.divider()
@@ -50,6 +52,15 @@ with st.sidebar:
         step=25,
     )
     st.divider()
+    default_mode = 0 if OPENAI_API_KEY else 1
+    embedding_label = st.selectbox(
+        "Embedding provider",
+        options=["OpenAI", "Local"],
+        index=default_mode,
+        help="OpenAI provides production-quality semantic embeddings. Local mode "
+        "is deterministic and intended for offline development.",
+    )
+    st.divider()
     st.caption(
         "Files are used only for the current session. Do not upload confidential "
         "documents until production security controls are implemented."
@@ -58,12 +69,14 @@ with st.sidebar:
 st.title("Agentic RAG Document Assistant")
 st.write(
     "Upload enterprise documents and ask questions in natural language. "
-    "The application now extracts and chunks supported files; later steps will "
-    "add embeddings, retrieval, agent reasoning, and grounded answer generation."
+    "The application now extracts, chunks, embeds, and indexes supported files "
+    "in Chroma; later steps will add retrieval, agent reasoning, and grounded "
+    "answer generation."
 )
 
 ingestion = IngestionResult()
 chunks = ()
+vector_index = None
 
 upload_tab, question_tab, about_tab = st.tabs(
     ["1. Upload documents", "2. Ask a question", "How it works"]
@@ -114,6 +127,23 @@ with upload_tab:
             chunk_col1, chunk_col2 = st.columns(2)
             chunk_col1.metric("Searchable chunks", len(chunks))
             chunk_col2.metric("Overlap", f"{chunk_overlap} characters")
+
+            try:
+                with st.spinner("Generating embeddings and building vector index..."):
+                    embedding_provider = create_embedding_provider(
+                        embedding_label, api_key=OPENAI_API_KEY
+                    )
+                    vector_store = ChromaVectorStore(embedding_provider)
+                    vector_index = vector_store.index_chunks(chunks)
+                vector_col1, vector_col2, vector_col3 = st.columns(3)
+                vector_col1.metric("Indexed vectors", vector_index.chunk_count)
+                vector_col2.metric(
+                    "Vector dimensions", vector_index.embedding_dimension
+                )
+                vector_col3.metric("Embedding mode", embedding_label)
+                st.success("The vector knowledge store is ready for semantic search.")
+            except Exception as exc:
+                st.error(f"Vector indexing failed: {exc}")
             with st.expander("Review extracted-content previews"):
                 for document in ingestion.documents:
                     st.markdown(f"**{document.source}**")
@@ -157,8 +187,8 @@ with question_tab:
         )
 
     if submitted:
-        if not chunks:
-            st.error("Upload and process at least one readable document first.")
+        if not chunks or vector_index is None:
+            st.error("Upload, process, and index at least one readable document first.")
         elif not question.strip():
             st.error("Enter a question before continuing.")
         elif len(question.strip()) < 5:
@@ -166,10 +196,10 @@ with question_tab:
         else:
             st.success("Question accepted.")
             st.info(
-                f"Your question is ready to search across "
-                f"{len(chunks)} chunks from {len(ingestion.documents)} processed "
-                "document(s). Embeddings and answer generation will be connected "
-                "in upcoming steps."
+                f"Your question is ready for semantic search across "
+                f"{vector_index.chunk_count} indexed vectors from "
+                f"{len(ingestion.documents)} document(s). Retrieval and answer "
+                "generation will be connected in upcoming steps."
             )
 
 with about_tab:

@@ -56,13 +56,18 @@ streamlit run app.py
 - Step 4 complete: configurable, overlapping text chunks with natural boundary detection, stable chunk IDs, source metadata, and interface previews.
 - Step 5 complete: embedding generation and Chroma vector indexing with production OpenAI embeddings or deterministic offline development embeddings.
 - Step 6 complete: semantic question retrieval with configurable result counts, ranked relevance scores, source filenames, locations, and expandable evidence passages.
+- Step 7 complete: grounded answer generation through the OpenAI Responses API with evidence-only instructions, inline source labels, citation validation, prompt-injection resistance, and an explicit insufficient-evidence response.
 
-Grounded answer generation will be connected in later steps.
+Specialized planning, reasoning, and validation agents will be connected in later steps.
 
 ### Embedding modes
 
 - **OpenAI:** Uses `text-embedding-3-small` when `OPENAI_API_KEY` is configured in the local `.env` file.
 - **Local:** Uses deterministic 384-dimensional token-hash vectors for offline development and testing. Local mode is not a substitute for a production semantic embedding model.
+
+### Grounded answers
+
+The answer generator uses `gpt-5-mini` by default. It receives only the user question and retrieved passages, treats document text as untrusted data, and requires inline citations such as `[S1]`. Set `OPENAI_MODEL` in the local `.env` file to use another compatible model.
 
 ## Security
 

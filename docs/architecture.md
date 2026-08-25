@@ -30,3 +30,7 @@ The vector layer generates one embedding per text chunk and upserts the vectors,
 ## Step 6 semantic retrieval
 
 The retrieval layer normalizes each question, embeds it with the same provider used for document chunks, and queries Chroma for the nearest passages. The interface allows one to eight results and displays each match in ranked order with a bounded relevance score, source filename, page or sheet label when available, stable chunk reference, and expandable source text. The retrieved passages become the evidence set for grounded generation in the next stage.
+
+## Step 7 grounded answer generation
+
+The generation layer sends the question and retrieved evidence to the OpenAI Responses API using `gpt-5-mini` by default. System-level grounding rules require evidence-only answers, inline `[S#]` labels, an explicit insufficient-evidence response, and treatment of all uploaded text as untrusted quoted data. The application validates that every cited label belongs to the retrieved evidence set before displaying the answer, and API response storage is disabled for each request.

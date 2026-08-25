@@ -2,8 +2,9 @@
 
 import streamlit as st
 
-from src.config import OPENAI_API_KEY
+from src.config import OPENAI_API_KEY, OPENAI_MODEL
 from src.document_loader import IngestionResult, load_documents
+from src.rag_pipeline import generate_grounded_answer
 from src.retriever import retrieve_passages
 from src.text_splitter import split_documents
 from src.ui_helpers import build_file_records, total_upload_size
@@ -33,7 +34,7 @@ st.markdown(
 
 with st.sidebar:
     st.header("Project status")
-    st.success("Step 6: Semantic retrieval")
+    st.success("Step 7: Grounded answer generation")
     st.write("Supported formats")
     st.code("PDF  TXT  CSV  XLSX", language=None)
     st.divider()
@@ -68,6 +69,7 @@ with st.sidebar:
         value=4,
         help="The number of relevant document passages shown for each question.",
     )
+    st.caption(f"Answer model: {OPENAI_MODEL}")
     st.divider()
     st.caption(
         "Files are used only for the current session. Do not upload confidential "
@@ -78,8 +80,8 @@ st.title("Agentic RAG Document Assistant")
 st.write(
     "Upload enterprise documents and ask questions in natural language. "
     "The application now extracts, chunks, embeds, and indexes supported files "
-    "in Chroma, then retrieves the passages most relevant to each question. "
-    "Later steps will add agent reasoning and grounded answer generation."
+    "in Chroma, retrieves relevant passages, and generates answers grounded in "
+    "those sources. Later steps will add specialized agent collaboration."
 )
 
 ingestion = IngestionResult()
@@ -217,7 +219,34 @@ with question_tab:
                         f"Retrieved {len(passages)} passage(s) from "
                         f"{len(ingestion.documents)} document(s)."
                     )
-                    st.subheader("Most relevant passages")
+                    if OPENAI_API_KEY:
+                        with st.spinner("Generating a grounded answer..."):
+                            grounded_answer = generate_grounded_answer(
+                                question=question,
+                                passages=passages,
+                                api_key=OPENAI_API_KEY,
+                                model=OPENAI_MODEL,
+                            )
+                        st.subheader("Grounded answer")
+                        st.markdown(grounded_answer.text)
+                        if grounded_answer.citation_ids:
+                            cited_sources = []
+                            for citation_id in grounded_answer.citation_ids:
+                                passage = passages[int(citation_id[1:]) - 1]
+                                cited_sources.append(
+                                    f"[{citation_id}] {passage.source} — "
+                                    f"{passage.location}"
+                                )
+                            st.caption("Cited evidence: " + " | ".join(cited_sources))
+                        st.caption(f"Generated with {grounded_answer.model}")
+                    else:
+                        st.warning(
+                            "Add OPENAI_API_KEY to your local .env file to "
+                            "generate the grounded answer. The retrieved "
+                            "evidence is shown below."
+                        )
+
+                    st.subheader("Supporting evidence")
                     for passage in passages:
                         score = round(passage.relevance * 100)
                         label = (
@@ -228,12 +257,11 @@ with question_tab:
                             st.write(passage.text)
                             st.caption(f"Reference: {passage.chunk_id}")
                     st.info(
-                        "Step 6 returns supporting evidence only. A later step "
-                        "will use these passages to generate and validate a "
-                        "grounded answer."
+                        "Answers are restricted to the displayed evidence. "
+                        "Always review the cited passages before relying on a response."
                     )
             except Exception as exc:
-                st.error(f"Semantic retrieval failed: {exc}")
+                st.error(f"Question answering failed: {exc}")
 
 with about_tab:
     st.subheader("Planned processing workflow")

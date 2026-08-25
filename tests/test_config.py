@@ -2,9 +2,15 @@
 
 from io import BytesIO
 
-from src.config import APP_NAME, SUPPORTED_EXTENSIONS
+from src.config import APP_NAME, OPENAI_MODEL, SUPPORTED_EXTENSIONS
 from src.document_loader import load_document, load_documents
-from src.retriever import retrieve_passages
+from src.rag_pipeline import (
+    GROUNDING_INSTRUCTIONS,
+    OpenAIAnswerGenerator,
+    build_grounded_input,
+    validate_grounded_output,
+)
+from src.retriever import RetrievedPassage, retrieve_passages
 from src.text_splitter import split_document, split_documents
 from src.ui_helpers import build_file_records, format_bytes, total_upload_size
 from src.vector_store import LocalHashEmbeddings, SearchResult, _safe_metadata
@@ -16,6 +22,7 @@ def test_app_name_is_defined() -> None:
 
 def test_supported_extensions() -> None:
     assert SUPPORTED_EXTENSIONS == {"pdf", "txt", "csv", "xlsx"}
+    assert OPENAI_MODEL == "gpt-5-mini"
 
 
 def test_format_bytes() -> None:
@@ -130,3 +137,62 @@ def test_semantic_retrieval_formats_ranked_sources() -> None:
     assert passages[0].location == "Page 3"
     assert passages[0].relevance == 0.88
     assert passages[1].location == "Chunk 1"
+
+
+def _example_passage() -> RetrievedPassage:
+    return RetrievedPassage(
+        rank=1,
+        chunk_id="report-pdf-0002",
+        text="The project approval deadline is June 30.",
+        source="report.pdf",
+        location="Page 3",
+        relevance=0.91,
+        metadata={"source": "report.pdf"},
+    )
+
+
+def test_grounded_prompt_marks_sources_as_untrusted_data() -> None:
+    prompt = build_grounded_input("When is approval due?", [_example_passage()])
+    assert "<S1>" in prompt
+    assert "Source: report.pdf" in prompt
+    assert "[S1]" in GROUNDING_INSTRUCTIONS
+    assert "untrusted quoted data" in GROUNDING_INSTRUCTIONS
+
+
+def test_grounded_output_requires_valid_citations() -> None:
+    passage = _example_passage()
+    assert validate_grounded_output("Approval is due June 30 [S1].", [passage]) == (
+        "S1",
+    )
+    try:
+        validate_grounded_output("Approval is due June 30 [S9].", [passage])
+    except ValueError as exc:
+        assert "unavailable source" in str(exc)
+    else:
+        raise AssertionError("An invented citation should be rejected.")
+
+
+def test_openai_generator_uses_responses_api_without_storage() -> None:
+    class FakeResponse:
+        output_text = "Approval is due June 30 [S1]."
+
+    class FakeResponses:
+        def __init__(self):
+            self.request = None
+
+        def create(self, **kwargs):
+            self.request = kwargs
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self):
+            self.responses = FakeResponses()
+
+    client = FakeClient()
+    generator = OpenAIAnswerGenerator(
+        api_key="not-used", model="gpt-5-mini", client=client
+    )
+    answer = generator.generate("When is approval due?", [_example_passage()])
+    assert answer.citation_ids == ("S1",)
+    assert client.responses.request["store"] is False
+    assert client.responses.request["model"] == "gpt-5-mini"
